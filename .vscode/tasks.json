@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "compile",
+      "problemMatcher": "$tsc",
+      "group": "build",
+      "label": "npm: compile"
+    },
+    {
+      "type": "shell",
+      "command": "cargo build --manifest-path analyzer/Cargo.toml",
+      "problemMatcher": "$rustc",
+      "group": "build",
+      "label": "cargo: analyzer"
+    }
+  ]
+}

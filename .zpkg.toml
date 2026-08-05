@@ -1,0 +1,27 @@
+[package]
+org = "zed-pkg"
+name = "zed-cursor"
+version = "0.1.0"
+description = "Cursor extension for Zed package health, diagnostics, and guided resolutions"
+license = "MIT"
+keywords = ["cursor", "extension", "package-manager", "diagnostics", "zed"]
+language = "typescript"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/zed-pkg/zed-cursor"
+
+[dependencies]
+"zed-pkg/zed-interfaces" = "^0.1.0"
+
+[build]
+command = "npm install && npm run compile && cargo build --manifest-path analyzer/Cargo.toml --release"
+outputs = ["dist/extension.js", "analyzer/target/release/zed-cursor-analyzer"]
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = ["node_modules/**", "dist/**", ".tmp-test/**", "analyzer/target/**", "*.vsix"]
+
+[scripts]
+test = "npm install && npm test && cargo test --manifest-path analyzer/Cargo.toml --all-targets"

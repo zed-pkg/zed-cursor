@@ -1,0 +1,19 @@
+name: Feature request
+description: Propose a new package insight, diagnostic, or safe resolution workflow.
+title: "feature: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: What package-management problem should the extension solve?
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Desired behavior
+      description: Include the expected diagnostic, recommendation, and validation path.
+    validations:
+      required: true

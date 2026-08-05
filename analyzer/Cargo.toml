@@ -1,0 +1,32 @@
+[package]
+name = "zed-cursor-analyzer"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Native workspace analyzer for the Zed Cursor extension"
+repository = "https://github.com/zed-pkg/zed-cursor"
+
+[lib]
+name = "zed_cursor_analyzer"
+path = "src/lib.rs"
+
+[[bin]]
+name = "zed-cursor-analyzer"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+semver = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+walkdir = "2.5"
+
+[dev-dependencies]
+tempfile = "3.14"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

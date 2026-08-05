@@ -1,0 +1,206 @@
+{
+  "name": "zed-cursor",
+  "displayName": "Zed Package Insights for Cursor",
+  "description": "Workspace health, diagnostics, dependency insights, and guided resolutions for Zed packages in Cursor.",
+  "version": "0.1.0",
+  "publisher": "zed-pkg",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zed-pkg/zed-cursor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zed-pkg/zed-cursor/issues"
+  },
+  "homepage": "https://github.com/zed-pkg/zed-cursor#readme",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Linters",
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "cursor",
+    "zed",
+    "zpkg",
+    "package-manager",
+    "dependencies",
+    "diagnostics"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/.zpkg.toml",
+    "workspaceContains:**/.zpkg.lock",
+    "onCommand:zedCursor.refresh",
+    "onCommand:zedCursor.showDashboard"
+  ],
+  "main": "./dist/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Read-only package analysis remains available. Commands that execute the Zed CLI are disabled until the workspace is trusted."
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "Zed package analysis requires access to local manifests, lockfiles, and dependency paths."
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "zedCursor.refresh",
+        "title": "Zed: Refresh Package Insights",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "zedCursor.showDashboard",
+        "title": "Zed: Show Package Insights",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "zedCursor.init",
+        "title": "Zed: Initialize Package"
+      },
+      {
+        "command": "zedCursor.openManifest",
+        "title": "Zed: Open Package Manifest"
+      },
+      {
+        "command": "zedCursor.install",
+        "title": "Zed: Install Dependencies"
+      },
+      {
+        "command": "zedCursor.installFrozen",
+        "title": "Zed: Install Frozen Dependencies"
+      },
+      {
+        "command": "zedCursor.build",
+        "title": "Zed: Build Package"
+      },
+      {
+        "command": "zedCursor.envVerify",
+        "title": "Zed: Verify Developer Environment"
+      },
+      {
+        "command": "zedCursor.selfUpdateCheck",
+        "title": "Zed: Check CLI Update"
+      },
+      {
+        "command": "zedCursor.copyResolutionPrompt",
+        "title": "Zed: Copy Resolution Prompt"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "zedPackages",
+          "title": "Zed Packages",
+          "icon": "media/zed.svg"
+        }
+      ]
+    },
+    "views": {
+      "zedPackages": [
+        {
+          "id": "zedCursor.packagesView",
+          "name": "Package Health",
+          "icon": "$(package)"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "zedCursor.packagesView",
+        "contents": "No Zed package manifest was found in this workspace.\n[Initialize a Zed package](command:zedCursor.init)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "zedCursor.refresh",
+          "when": "view == zedCursor.packagesView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "zedCursor.showDashboard",
+          "when": "view == zedCursor.packagesView",
+          "group": "navigation@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "zedCursor.showDashboard",
+          "when": "resourceFilename == .zpkg.toml || resourceFilename == .zpkg.lock",
+          "group": "navigation@10"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Zed Package Insights",
+      "properties": {
+        "zedCursor.cliPath": {
+          "type": "string",
+          "default": "zed",
+          "description": "Path to the Zed package-manager CLI executable."
+        },
+        "zedCursor.analyzerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional path to a zed-cursor-analyzer executable. The bundled analyzer is used when available."
+        },
+        "zedCursor.preferRustAnalyzer": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use the bundled Rust analyzer when available, falling back to the TypeScript analyzer otherwise."
+        },
+        "zedCursor.scanExclude": {
+          "type": "string",
+          "default": "**/{node_modules,target,.git,.zed,.zed-pack,.vendor}/**",
+          "description": "Glob excluded while discovering Zed package manifests."
+        },
+        "zedCursor.confirmMutatingCommands": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ask before running commands such as zed install or zed build."
+        },
+        "zedCursor.maxManifests": {
+          "type": "number",
+          "default": 250,
+          "minimum": 1,
+          "maximum": 5000,
+          "description": "Maximum number of manifests analyzed per refresh."
+        },
+        "zedCursor.refreshDebounceMs": {
+          "type": "number",
+          "default": 350,
+          "minimum": 50,
+          "maximum": 10000,
+          "description": "Delay before re-analyzing after manifest or lockfile changes."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "compile": "tsc -p tsconfig.json",
+    "watch": "tsc -w -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test:core": "node scripts/test-core.mjs",
+    "test:rust": "cargo test --manifest-path analyzer/Cargo.toml --all-targets",
+    "test": "npm run test:core",
+    "package": "npm run clean && npm run compile && npx @vscode/vsce package",
+    "publish:openvsx": "npx ovsx publish",
+    "vscode:prepublish": "npm run clean && npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/vscode": "^1.96.0",
+    "@vscode/vsce": "^3.6.0",
+    "ovsx": "^0.10.0",
+    "typescript": "^5.8.3"
+  }
+}

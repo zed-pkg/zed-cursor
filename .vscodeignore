@@ -1,0 +1,11 @@
+.github/**
+.vscode/**
+test/**
+analyzer/src/**
+analyzer/tests/**
+analyzer/Cargo.lock
+scripts/**
+.tmp-test/**
+**/*.map
+**/*.ts
+!dist/**/*.d.ts

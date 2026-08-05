@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            destination: linux-x64
+            executable: zed-cursor-analyzer
+          - os: macos-13
+            target: x86_64-apple-darwin
+            destination: darwin-x64
+            executable: zed-cursor-analyzer
+          - os: macos-14
+            target: aarch64-apple-darwin
+            destination: darwin-arm64
+            executable: zed-cursor-analyzer
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            destination: win32-x64
+            executable: zed-cursor-analyzer.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: analyzer
+      - run: cargo build --manifest-path analyzer/Cargo.toml --release --target ${{ matrix.target }}
+      - shell: bash
+        run: |
+          mkdir -p staging/${{ matrix.destination }}
+          cp analyzer/target/${{ matrix.target }}/release/${{ matrix.executable }} staging/${{ matrix.destination }}/${{ matrix.executable }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: analyzer-${{ matrix.destination }}
+          path: staging/${{ matrix.destination }}
+
+  package:
+    needs: native
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: analyzer-*
+          path: bin
+          merge-multiple: false
+      - name: Normalize downloaded analyzer paths
+        run: |
+          mkdir -p normalized
+          find bin -type f -name 'zed-cursor-analyzer*' -print0 | while IFS= read -r -d '' file; do
+            parent="$(basename "$(dirname "$file")")"
+            if [[ "$parent" == analyzer-* ]]; then
+              destination="${parent#analyzer-}"
+            else
+              destination="$parent"
+            fi
+            mkdir -p "normalized/$destination"
+            cp "$file" "normalized/$destination/$(basename "$file")"
+            chmod +x "normalized/$destination/$(basename "$file")" || true
+          done
+          rm -rf bin
+          mv normalized bin
+          find bin -maxdepth 2 -type f -print
+      - run: npm install
+      - run: npm run check
+      - run: npm test
+      - run: npm run compile
+      - id: version
+        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - run: npx @vscode/vsce package --out zed-cursor-${{ steps.version.outputs.value }}.vsix
+      - name: Publish to Open VSX when configured
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [[ -n "$OVSX_PAT" ]]; then
+            npx ovsx publish zed-cursor-${{ steps.version.outputs.value }}.vsix -p "$OVSX_PAT"
+          else
+            echo "OVSX_PAT is not configured; skipping Open VSX publication."
+          fi
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: zed-cursor-${{ steps.version.outputs.value }}.vsix
+          generate_release_notes: true

@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.tmp-test/
+*.vsix
+.DS_Store
+analyzer/target/
+bin/
+coverage/
