@@ -15,7 +15,7 @@ url = "https://github.com/zed-pkg/zed-cursor"
 "zed-pkg/zed-interfaces" = "^0.1.0"
 
 [build]
-command = "npm install && npm run compile && cargo build --manifest-path analyzer/Cargo.toml --release"
+command = "npm ci --ignore-scripts --no-audit --no-fund && npm run compile && cargo build --locked --manifest-path analyzer/Cargo.toml --release"
 outputs = ["dist/extension.js", "analyzer/target/release/zed-cursor-analyzer"]
 
 [publish]
@@ -24,4 +24,4 @@ tag_format = "v{version}"
 exclude = ["node_modules/**", "dist/**", ".tmp-test/**", "analyzer/target/**", "*.vsix"]
 
 [scripts]
-test = "npm install && npm test && cargo test --manifest-path analyzer/Cargo.toml --all-targets"
+test = "npm ci --ignore-scripts --no-audit --no-fund && npm test && cargo test --locked --manifest-path analyzer/Cargo.toml --all-targets"

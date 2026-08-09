@@ -6,7 +6,11 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   native:
@@ -14,72 +18,82 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             destination: linux-x64
             executable: zed-cursor-analyzer
-          - os: macos-13
+          - os: macos-15
             target: x86_64-apple-darwin
             destination: darwin-x64
             executable: zed-cursor-analyzer
-          - os: macos-14
+          - os: macos-15
             target: aarch64-apple-darwin
             destination: darwin-arm64
             executable: zed-cursor-analyzer
-          - os: windows-latest
+          - os: windows-2025
             target: x86_64-pc-windows-msvc
             destination: win32-x64
             executable: zed-cursor-analyzer.exe
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           targets: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           workspaces: analyzer
-      - run: cargo build --manifest-path analyzer/Cargo.toml --release --target ${{ matrix.target }}
+      - run: cargo build --locked --manifest-path analyzer/Cargo.toml --release --target ${{ matrix.target }}
       - shell: bash
         run: |
           mkdir -p staging/${{ matrix.destination }}
           cp analyzer/target/${{ matrix.target }}/release/${{ matrix.executable }} staging/${{ matrix.destination }}/${{ matrix.executable }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: analyzer-${{ matrix.destination }}
           path: staging/${{ matrix.destination }}
+          if-no-files-found: error
+          retention-days: 7
 
   package:
     needs: native
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: open-vsx
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 22
-      - uses: actions/download-artifact@v4
+          cache: npm
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: analyzer-*
-          path: bin
+          path: ${{ runner.temp }}/zed-cursor-analyzers
           merge-multiple: false
       - name: Normalize downloaded analyzer paths
         run: |
-          mkdir -p normalized
-          find bin -type f -name 'zed-cursor-analyzer*' -print0 | while IFS= read -r -d '' file; do
+          mkdir -p bin
+          find "${{ runner.temp }}/zed-cursor-analyzers" -type f -name 'zed-cursor-analyzer*' -print0 | while IFS= read -r -d '' file; do
             parent="$(basename "$(dirname "$file")")"
             if [[ "$parent" == analyzer-* ]]; then
               destination="${parent#analyzer-}"
             else
               destination="$parent"
             fi
-            mkdir -p "normalized/$destination"
-            cp "$file" "normalized/$destination/$(basename "$file")"
-            chmod +x "normalized/$destination/$(basename "$file")" || true
+            mkdir -p "bin/$destination"
+            cp "$file" "bin/$destination/$(basename "$file")"
+            chmod +x "bin/$destination/$(basename "$file")" || true
           done
-          rm -rf bin
-          mv normalized bin
           find bin -maxdepth 2 -type f -print
-      - run: npm install
+      - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run check
       - run: npm test
       - run: npm run compile
@@ -95,7 +109,7 @@ jobs:
           else
             echo "OVSX_PAT is not configured; skipping Open VSX publication."
           fi
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: zed-cursor-${{ steps.version.outputs.value }}.vsix
           generate_release_notes: true

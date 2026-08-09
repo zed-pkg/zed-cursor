@@ -90,7 +90,9 @@ export class PackageTreeProvider implements vscode.TreeDataProvider<TreeNode> {
 function packageItem(packageReport: PackageReport): vscode.TreeItem {
   const label = canonicalName(packageReport) ?? path.basename(packageReport.root);
   const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.Expanded);
-  item.description = packageReport.identity.version;
+  if (packageReport.identity.version !== undefined) {
+    item.description = packageReport.identity.version;
+  }
   item.contextValue = 'zedPackage';
   item.tooltip = new vscode.MarkdownString([
     `**${label}**`,

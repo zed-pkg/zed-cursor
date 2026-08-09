@@ -103,7 +103,11 @@ pub struct WorkspaceReport {
 
 pub fn analyze_root(root: &Path, max_manifests: usize) -> Result<WorkspaceReport> {
     let manifests = discover_manifests(root, max_manifests.saturating_add(1));
-    let selected = manifests.iter().take(max_manifests).cloned().collect::<Vec<_>>();
+    let selected = manifests
+        .iter()
+        .take(max_manifests)
+        .cloned()
+        .collect::<Vec<_>>();
     let mut packages = selected
         .iter()
         .map(|manifest| analyze_manifest(manifest))
@@ -219,7 +223,10 @@ fn analyze_manifest(manifest_path: &Path) -> PackageReport {
                 severity: "error".into(),
                 message: format!("Could not parse the package manifest: {error}"),
                 file: manifest_path.display().to_string(),
-                line: error.span().map(|span| byte_line(&text, span.start)).unwrap_or(1),
+                line: error
+                    .span()
+                    .map(|span| byte_line(&text, span.start))
+                    .unwrap_or(1),
                 column: 0,
                 length: None,
                 detail: Some(error.to_string()),
@@ -355,7 +362,8 @@ fn validate_dependencies(
                 vec![open_manifest()],
             ));
         }
-        if dependency.requirement.is_none() && dependency.path.is_none() && dependency.git.is_none() {
+        if dependency.requirement.is_none() && dependency.path.is_none() && dependency.git.is_none()
+        {
             issues.push(simple_issue(
                 "manifest.dependency-invalid",
                 "error",
@@ -441,7 +449,9 @@ fn validate_lock(manifest_path: &Path, lock_path: &Path, issues: &mut Vec<Packag
         Ok(_) => {
             let manifest_modified = modified(manifest_path);
             let lock_modified = modified(lock_path);
-            if let (Some(manifest_modified), Some(lock_modified)) = (manifest_modified, lock_modified) {
+            if let (Some(manifest_modified), Some(lock_modified)) =
+                (manifest_modified, lock_modified)
+            {
                 if manifest_modified > lock_modified {
                     issues.push(PackageIssue {
                         code: "lock.stale".into(),
@@ -504,30 +514,28 @@ fn detect_cycles(packages: &[PackageReport]) -> Vec<PackageIssue> {
         })
         .collect::<HashMap<_, _>>();
 
-    let mut visited = HashSet::new();
-    let mut active = HashSet::new();
-    let mut stack = Vec::new();
-    let mut seen_cycles = HashSet::new();
-    let mut issues = Vec::new();
+    struct CycleVisitState {
+        visited: HashSet<String>,
+        active: HashSet<String>,
+        stack: Vec<String>,
+        seen_cycles: HashSet<String>,
+        issues: Vec<PackageIssue>,
+    }
 
     fn visit(
         node: &str,
         graph: &HashMap<String, Vec<String>>,
         by_name: &HashMap<String, &PackageReport>,
-        visited: &mut HashSet<String>,
-        active: &mut HashSet<String>,
-        stack: &mut Vec<String>,
-        seen_cycles: &mut HashSet<String>,
-        issues: &mut Vec<PackageIssue>,
+        state: &mut CycleVisitState,
     ) {
-        if active.contains(node) {
-            if let Some(start) = stack.iter().position(|entry| entry == node) {
-                let mut cycle = stack[start..].to_vec();
+        if state.active.contains(node) {
+            if let Some(start) = state.stack.iter().position(|entry| entry == node) {
+                let mut cycle = state.stack[start..].to_vec();
                 cycle.push(node.to_string());
                 let key = normalize_cycle(&cycle);
-                if seen_cycles.insert(key) {
+                if state.seen_cycles.insert(key) {
                     if let Some(package) = by_name.get(node) {
-                        issues.push(PackageIssue {
+                        state.issues.push(PackageIssue {
                             code: "dependency.cycle".into(),
                             severity: "error".into(),
                             message: format!(
@@ -554,52 +562,50 @@ fn detect_cycles(packages: &[PackageReport]) -> Vec<PackageIssue> {
             }
             return;
         }
-        if !visited.insert(node.to_string()) {
+        if !state.visited.insert(node.to_string()) {
             return;
         }
-        active.insert(node.to_string());
-        stack.push(node.to_string());
+        state.active.insert(node.to_string());
+        state.stack.push(node.to_string());
         for neighbor in graph.get(node).into_iter().flatten() {
-            visit(
-                neighbor,
-                graph,
-                by_name,
-                visited,
-                active,
-                stack,
-                seen_cycles,
-                issues,
-            );
+            visit(neighbor, graph, by_name, state);
         }
-        stack.pop();
-        active.remove(node);
+        state.stack.pop();
+        state.active.remove(node);
     }
 
+    let mut state = CycleVisitState {
+        visited: HashSet::new(),
+        active: HashSet::new(),
+        stack: Vec::new(),
+        seen_cycles: HashSet::new(),
+        issues: Vec::new(),
+    };
     for node in graph.keys() {
-        visit(
-            node,
-            &graph,
-            &by_name,
-            &mut visited,
-            &mut active,
-            &mut stack,
-            &mut seen_cycles,
-            &mut issues,
-        );
+        visit(node, &graph, &by_name, &mut state);
     }
-    issues
+    state.issues
 }
 
 fn count_report(packages: &[PackageReport], issues: &[PackageIssue]) -> ReportCounts {
     ReportCounts {
         packages: packages.len(),
-        dependencies: packages.iter().map(|package| package.dependencies.len()).sum(),
-        errors: issues.iter().filter(|issue| issue.severity == "error").count(),
+        dependencies: packages
+            .iter()
+            .map(|package| package.dependencies.len())
+            .sum(),
+        errors: issues
+            .iter()
+            .filter(|issue| issue.severity == "error")
+            .count(),
         warnings: issues
             .iter()
             .filter(|issue| issue.severity == "warning")
             .count(),
-        infos: issues.iter().filter(|issue| issue.severity == "info").count(),
+        infos: issues
+            .iter()
+            .filter(|issue| issue.severity == "info")
+            .count(),
     }
 }
 
@@ -628,8 +634,10 @@ fn normalize_cycle(cycle: &[String]) -> String {
 }
 
 fn is_dependency_section(section: &str) -> bool {
-    matches!(section, "dependencies" | "dev-dependencies" | "build-dependencies")
-        || section.ends_with(".dependencies")
+    matches!(
+        section,
+        "dependencies" | "dev-dependencies" | "build-dependencies"
+    ) || section.ends_with(".dependencies")
         || section.ends_with(".dev-dependencies")
 }
 
@@ -748,5 +756,52 @@ version = "1.2.3"
             .issues
             .iter()
             .any(|issue| issue.code == "dependency.path-missing"));
+    }
+
+    #[test]
+    fn reports_each_workspace_dependency_cycle_once() {
+        let directory = tempdir().expect("tempdir");
+        let package_a = directory.path().join("a");
+        let package_b = directory.path().join("b");
+        fs::create_dir_all(&package_a).expect("package a");
+        fs::create_dir_all(&package_b).expect("package b");
+        fs::write(
+            package_a.join(".zpkg.toml"),
+            r#"
+[package]
+org = "acme"
+name = "a"
+version = "1.0.0"
+
+[dependencies]
+"acme/b" = "^1.0.0"
+"#,
+        )
+        .expect("manifest a");
+        fs::write(
+            package_b.join(".zpkg.toml"),
+            r#"
+[package]
+org = "acme"
+name = "b"
+version = "1.0.0"
+
+[dependencies]
+"acme/a" = "^1.0.0"
+"#,
+        )
+        .expect("manifest b");
+        fs::write(package_a.join(".zpkg.lock"), "version = 1\n").expect("lock a");
+        fs::write(package_b.join(".zpkg.lock"), "version = 1\n").expect("lock b");
+
+        let report = analyze_root(directory.path(), 10).expect("analysis");
+        let cycles = report
+            .issues
+            .iter()
+            .filter(|issue| issue.code == "dependency.cycle")
+            .collect::<Vec<_>>();
+        assert_eq!(cycles.len(), 1);
+        assert!(cycles[0].message.contains("acme/a"));
+        assert!(cycles[0].message.contains("acme/b"));
     }
 }
