@@ -194,7 +194,9 @@
     "test": "npm run test:core",
     "package": "npm run clean && npm run compile && npx @vscode/vsce package",
     "publish:openvsx": "npx ovsx publish",
-    "vscode:prepublish": "npm run clean && npm run compile"
+    "vscode:prepublish": "npm run clean && npm run compile",
+    "lint:ores": "if [ -f .ores-lint/lint.sh ]; then sh .ores-lint/lint.sh; else echo 'ores-lint not installed'; fi",
+    "prepublishOnly": "npm run lint:ores"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
@@ -202,5 +204,13 @@
     "@vscode/vsce": "^3.6.0",
     "ovsx": "^0.10.0",
     "typescript": "^5.8.3"
+  },
+  "oresLint": {
+    "note": "Declared, not installed. ores-lint resolves these from a global install - see .ores-lint/README.md",
+    "requires": {
+      "eslint": ">=9",
+      "typescript-eslint": ">=8 (optional; without it .ts files are skipped)"
+    },
+    "install": "npm i -g eslint typescript-eslint"
   }
 }
