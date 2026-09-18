@@ -12,6 +12,8 @@ tmp/temp/
 tmp/worktrees/
 # <<< ores fleet hygiene <<<
 
-# Local temporary directories and Git worktrees (DEN-3956).
+# Local temporary directories and authorized Git worktrees.
+# DEN-3956 (PR #3) plus the repository-local worktree policy in AGENTS.md:
+# the directory forms below also cover tmp/worktrees/ and temp/worktrees/.
 tmp/
 temp/
