@@ -9,7 +9,7 @@ rmSync(temporary, { recursive: true, force: true });
 
 try {
   execFileSync('tsc', ['-p', 'tsconfig.core.json'], { cwd: root, stdio: 'inherit' });
-  execFileSync(process.execPath, ['--test', 'test/manifest.test.mjs'], { cwd: root, stdio: 'inherit' });
+  execFileSync(process.execPath, ['--test', 'test/manifest.test.mjs', 'test/analyzer-admission.test.mjs'], { cwd: root, stdio: 'inherit' });
 } finally {
   rmSync(temporary, { recursive: true, force: true });
 }

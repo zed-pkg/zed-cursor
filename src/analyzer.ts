@@ -3,6 +3,7 @@ import { access, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { parseManifest } from './core/manifest';
+import { validateAnalyzerReport } from './core/reportAdmission';
 import type {
   PackageIssue,
   PackageReport,
@@ -58,11 +59,8 @@ async function runRustAnalyzer(
   if (stderr.trim().length > 0) {
     throw new Error(stderr.trim());
   }
-  const parsed = JSON.parse(stdout) as WorkspaceReport;
-  if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.packages)) {
-    throw new Error('The analyzer returned an unsupported report schema.');
-  }
-  return parsed;
+  // Treat subprocess JSON as untrusted: no foreign-workspace packages or diagnostics.
+  return validateAnalyzerReport(JSON.parse(stdout) as unknown, root);
 }
 
 async function analyzeWithTypeScript(options: AnalyzerOptions): Promise<WorkspaceReport> {
